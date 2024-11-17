@@ -191,6 +191,20 @@ module RubyIndexer
       end
     end
 
+    def test_private_class_method_as_def_prefix
+      index(<<~RUBY)
+        class Test
+          private_class_method def self.foo
+          end
+        end
+      RUBY
+
+      entries = T.must(@index["foo"])
+      assert_equal(1, entries.size)
+      entry = entries.first
+      assert_predicate(entry, :private?)
+    end
+
     def test_method_with_parameters
       index(<<~RUBY)
         class Foo

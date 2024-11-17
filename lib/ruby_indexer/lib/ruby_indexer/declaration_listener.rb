@@ -315,6 +315,7 @@ module RubyIndexer
       when :module_function
         handle_module_function(node)
       when :private_class_method
+        @visibility_stack.push(Entry::Visibility::PRIVATE)
         handle_private_class_method(node)
       end
 
@@ -810,6 +811,13 @@ module RubyIndexer
     sig { params(node: Prism::CallNode).void }
     def handle_private_class_method(node)
       node.arguments&.arguments&.each do |argument|
+        # e.g. private_class_method def self.foo
+        if argument.is_a?(Prism::DefNode)
+          mark_class_method_as_private(argument.name.to_s)
+          return
+        end
+
+        # e.g. private_class_method :foo, "bar"
         string_or_symbol_nodes = case argument
         when Prism::StringNode, Prism::SymbolNode
           [argument]
@@ -828,19 +836,24 @@ module RubyIndexer
           end
           next unless method_name
 
-          owner_name = @owner_stack.last&.name
-          next unless owner_name
-
-          entries = @index.resolve_method(method_name, @index.existing_or_new_singleton_class(owner_name).name)
-          next unless entries
-
-          entries.each do |entry|
-            entry_owner_name = entry.owner&.name
-            next unless entry_owner_name
-
-            entry.visibility = Entry::Visibility::PRIVATE
-          end
+          mark_class_method_as_private(method_name)
         end
+      end
+    end
+
+    sig { params(method_name: String).void }
+    def mark_class_method_as_private(method_name)
+      owner_name = @owner_stack.last&.name
+      return unless owner_name
+
+      entries = @index.resolve_method(method_name, @index.existing_or_new_singleton_class(owner_name).name)
+      return unless entries
+
+      entries.each do |entry|
+        entry_owner_name = entry.owner&.name
+        next unless entry_owner_name
+
+        entry.visibility = Entry::Visibility::PRIVATE
       end
     end
 
