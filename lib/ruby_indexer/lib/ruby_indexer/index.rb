@@ -1,9 +1,20 @@
 # typed: strict
 # frozen_string_literal: true
 
+require_relative "configuration_handler"
+require_relative "entry_manager"
+require_relative "ancestor_linearizer"
+require_relative "method_resolver"
+require_relative "constant_resolver"
+
 module RubyIndexer
   class Index
     extend T::Sig
+    include ConfigurationHandler
+    include EntryManager
+    include AncestorLinearizer
+    include MethodResolver
+    include ConstantResolver
 
     class UnresolvableAliasError < StandardError; end
     class NonExistingNamespaceError < StandardError; end
@@ -11,9 +22,6 @@ module RubyIndexer
 
     # The minimum Jaro-Winkler similarity score for an entry to be considered a match for a given fuzzy search query
     ENTRY_SIMILARITY_THRESHOLD = 0.7
-
-    sig { returns(Configuration) }
-    attr_reader :configuration
 
     sig { void }
     def initialize
@@ -46,7 +54,7 @@ module RubyIndexer
         T::Hash[String, T::Array[T.proc.params(index: Index, base: Entry::Namespace).void]],
       )
 
-      @configuration = T.let(RubyIndexer::Configuration.new, Configuration)
+      initialize_configuration
     end
 
     # Register an included `hook` that will be executed when `module_name` is included into any namespace
@@ -744,7 +752,7 @@ module RubyIndexer
 
           # When there are duplicate prepended modules, we have to insert the new prepends after the existing ones. For
           # example, if the current ancestors are `["A", "Foo"]` and we try to prepend `["A", "B"]`, then `"B"` has to
-          # be inserted after `"A`
+          # be inserted after `"A"`
           uniq_prepends = linearized_prepends - T.must(ancestors[0...main_namespace_index])
           insert_position = linearized_prepends.length - uniq_prepends.length
 
