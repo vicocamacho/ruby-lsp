@@ -59,10 +59,7 @@ module URI
     def set_path(v) # rubocop:disable Naming/AccessorMethodName
       return if v.nil?
 
-      gem_version, path = v.delete_prefix("/").split("/", 2)
-
-      @gem_version = T.let(gem_version, T.nilable(String))
-      @path = T.let(path, T.nilable(String))
+      @gem_version, @path = v.split("/", 2)
     end
 
     sig { params(v: T.nilable(String)).returns(T::Boolean) }
@@ -85,7 +82,7 @@ module URI
     if URI.respond_to?(:register_scheme)
       URI.register_scheme("SOURCE", self)
     else
-      @@schemes = T.let(@@schemes, T::Hash[String, T.untyped]) # rubocop:disable Style/ClassVars
+      @@schemes = T.let(@@schemes, T::Hash[String, T.untyped])
       @@schemes["SOURCE"] = self
     end
   end
